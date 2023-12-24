@@ -1,47 +1,89 @@
-<script setup lang="ts">
-import HelloWorld from './components/HelloWorld.vue'
-import TheWelcome from './components/TheWelcome.vue'
-</script>
-
 <template>
-  <header>
-    <img alt="Vue logo" class="logo" src="./assets/logo.svg" width="125" height="125" />
-
-    <div class="wrapper">
-      <HelloWorld msg="You did it!" />
-    </div>
-  </header>
-
-  <main>
-    <TheWelcome />
-  </main>
+  <InfinityScroller
+      v-if="allItems.length"
+      class="content"
+      :items="allItems"
+      :item-size="50"
+      :height-container="600"
+      @on-infinity-scroll="onLoadMore"
+  >
+    <template #default="{ item }">
+      <Person
+          :item="item"
+          @item-click="onListElementClick"
+      />
+    </template>
+  </InfinityScroller>
+  <div v-else>
+    Loading...
+  </div>
+  <ModalWindow
+      :is-open="isModalOpen"
+      @close="isModalOpen = false"
+  >
+    <PersonModal
+        :item="selectedItem"
+    />
+  </ModalWindow>
 </template>
 
-<style scoped>
-header {
-  line-height: 1.5;
+<script setup lang="ts">
+import { onMounted, type Ref, ref } from 'vue'
+import { getPersons } from '@/api/persons'
+import Person from '@/components/Person.vue'
+import InfinityScroller from '@/components/InfinityScroller.vue'
+import ModalWindow from '@/components/ModalWindow.vue'
+import PersonModal from '@/components/PersonModal.vue'
+import type { PersonInterface } from '@/api/persons/interfaces';
+
+const isModalOpen: Ref<boolean> = ref(false)
+const selectedItem: Ref<PersonInterface | null> = ref(null)
+const allItems: Ref<PersonInterface[]> = ref([])
+const isLoading: Ref<boolean> = ref(false)
+
+onMounted(async () => {
+  allItems.value = await getPersons()
+})
+
+const onLoadMore = async () => {
+  if (isLoading.value) {
+    return
+  }
+
+  isLoading.value = true
+
+  try {
+    allItems.value.push(...await getPersons())
+  } catch (error) {
+    console.error(error)
+  } finally {
+    isLoading.value = false
+  }
 }
 
-.logo {
-  display: block;
-  margin: 0 auto 2rem;
+const openModal = (item: PersonInterface): void => {
+  selectedItem.value = item
+  isModalOpen.value = true
 }
 
-@media (min-width: 1024px) {
-  header {
-    display: flex;
-    place-items: center;
-    padding-right: calc(var(--section-gap) / 2);
-  }
+const onListElementClick = (item: PersonInterface): void => {
+  openModal(item)
+}
 
-  .logo {
-    margin: 0 2rem 0 0;
-  }
+</script>
 
-  header .wrapper {
-    display: flex;
-    place-items: flex-start;
-    flex-wrap: wrap;
-  }
+<style>
+body {
+  font-size: 16px;
+  font-family: 'Avenir', Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: #2c3e50;
+  margin: 0;
+}
+
+.content {
+  border: solid 1px #42b983;
+  position: relative;
 }
 </style>
